@@ -1,9 +1,11 @@
 import os
 import cv2
 import torch
+import numpy as np
 from glob import glob
 from PIL import Image
 from utils import iou_width_height
+from torchvision import transforms
 
 class Dataset(torch.utils.data.Dataset):
     """
@@ -39,11 +41,12 @@ class Dataset(torch.utils.data.Dataset):
         mode='train',
         S=[13, 26, 52],
         C=20,
-        transoform=None,
+        transform=None,
         ignore_iou_thresh=0.5
     ):
         self.path = path
         self.mode = mode
+        self.transform = transform
         self.anchors = torch.tensor(anchors[0] + anchors[1] + anchors[2])
         self.num_anchors = self.anchors.shape[0]
         self.S = S
@@ -55,7 +58,7 @@ class Dataset(torch.utils.data.Dataset):
         self.labels = sorted(os.listdir(self.path + "/" + self.mode + "/labels"))
 
     def __len__(self):
-        return len(self.images)
+        return len(self.labels)
     
     def __getitem__(self, index):
         label = os.path.join(self.path, self.mode, "labels", self.labels[index])
@@ -83,7 +86,7 @@ class Dataset(torch.utils.data.Dataset):
                 i, j = int(y * S), int(x * S) # e.g. x = 0.5 && S = 13 -> j = (13 * 0.5) = 6
                 anchor_taken = targets[scale_idx][anchor_on_scale, i, j, 0]
 
-                if not anchor_taken and has_anchors[scale]:
+                if not anchor_taken and has_anchors[scale_idx]:
                     targets[scale_idx][anchor_on_scale, i, j, 0] = 1
                     x_cell, y_cell = x * S - j, y * S - i
                     w_cell, h_cell = (
@@ -119,3 +122,39 @@ class Dataset(torch.utils.data.Dataset):
                 boxes.append([class_id, x, y, w, h])
         
         return boxes
+
+
+class Compose(object):
+    def __init__(self, transforms):
+        self.transforms = transforms
+
+    def __call__(self, image, bboxes):
+        for transform in self.transforms:
+            image, bboxes = transform(image), bboxes
+        return image, bboxes
+
+
+
+if __name__ == "__main__":
+    transform = Compose([transforms.Resize((448, 448)), transforms.ToTensor()])
+    ANCHORS = [
+        [(0.28, 0.22), (0.38, 0.48), (0.9, 0.78)],
+        [(0.07, 0.15), (0.15, 0.11), (0.14, 0.29)],
+        [(0.02, 0.03), (0.04, 0.07), (0.08, 0.06)],
+    ]
+
+    dataset = Dataset(
+        path='/home/appuser/data/PASCAL_VOC',
+        mode='train',
+        anchors=ANCHORS,
+        transform=transform
+    )
+
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=8, shuffle=True)
+    train_fea, train_labels = next(iter(dataloader))
+
+    print(f"Train Feature: {train_fea.shape}")
+    print(f"Train Labels Scale 1: {train_labels[0].shape}")
+    print(f"Train Labels Scale 2: {train_labels[1].shape}")
+    print(f"Train Labels Scale 3: {train_labels[2].shape}")
+    print("Succeed")
