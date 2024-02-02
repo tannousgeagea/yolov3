@@ -59,7 +59,7 @@ class Yolov3(nn.Module):
         **kwargs: set of additional arguments
     """
     def __init__(self, in_channels, num_classes=80, **kwargs):
-        super(Yolov3, self).__init__()
+        super().__init__()
         self.in_channels = in_channels
         self.num_classes = num_classes
         self.layers = self.parse_module(architecture)
@@ -87,7 +87,7 @@ class Yolov3(nn.Module):
         return nn.Sequential(*(Bottleneck(channels, channels, shortcut=True, e=0.5) for _ in range(n)))
     
     def parse_module(self, configurations):
-        layers = []
+        layers = nn.ModuleList()
         in_channels = self.in_channels
         try:
             for i, layer in enumerate(configurations):
@@ -134,3 +134,6 @@ if __name__ == "__main__":
     print(f"Scale 1: {out[0].shape}")
     print(f"Scale 2: {out[1].shape}")
     print(f"Scale 3: {out[2].shape}")
+
+
+    print(list(model.parameters()))

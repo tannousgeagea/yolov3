@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from utils import iou
+from metrics import iou
 
 
 
@@ -13,10 +13,10 @@ class Loss(nn.Module):
         self.entropy = nn.CrossEntropyLoss()
         self.sigmoid = nn.Sigmoid()
 
-        self.lambda_noobj = 1
+        self.lambda_noobj = 10
         self.lambda_obj = 1
         self.lambda_class = 1
-        self.lambda_box = 1
+        self.lambda_box = 10
 
     def forward(self, predictions, target, anchors):
         # predictions -> (N, 3, S, S, C + 5)
@@ -38,8 +38,8 @@ class Loss(nn.Module):
 
         ##  no object loss
         no_object_loss = self.bce(
-            self.predictions[..., 0:1][noobj_exists],
-            self.target[..., :1][noobj_exists]
+            predictions[..., 0:1][noobj_exists],
+            target[..., :1][noobj_exists]
         )
 
         ## object loss
@@ -50,7 +50,8 @@ class Loss(nn.Module):
         ), dim=-1)
         ious = iou(
             pred_boxes[obj_exists],
-            target[..., 1:5][obj_exists]
+            target[..., 1:5][obj_exists], 
+            xywh=True,
         ).detach()
 
         object_loss = self.bce(

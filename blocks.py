@@ -21,7 +21,7 @@ class ConvBNSiLU(nn.Module):
         self.bn_act = bn_act
 
     def forward(self, x):
-        return self.silu(self.bn(self.conv(x))) if self.bn_act else self.conv(x)
+        return self.silu(self.bn(self.conv(x))) if self.bn_act else self.conv(x) if self.bn_act else self.conv(x)
 
 class Bottleneck(nn.Module):
     """
@@ -74,7 +74,7 @@ class ScalePrediction(nn.Module):
 
         self.pred = nn.Sequential(
             ConvBNSiLU(in_channels, 2 * in_channels, kernel_size=3, stride=1, padding=1),
-            ConvBNSiLU(2 * in_channels, 3 * self.attribute, kernel_size=1, stride=1, padding=0)
+            ConvBNSiLU(2 * in_channels, 3 * self.attribute, kernel_size=1, stride=1, padding=0, bn_act=False)
         )
     
     def forward(self, x):

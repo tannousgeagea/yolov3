@@ -6,6 +6,10 @@ from glob import glob
 from PIL import Image
 from utils import iou_width_height
 from torchvision import transforms
+import matplotlib.pyplot as plt
+from utils import convert_trueboxes, draw_bounding_boxes
+import config
+
 
 class Dataset(torch.utils.data.Dataset):
     """
@@ -61,15 +65,21 @@ class Dataset(torch.utils.data.Dataset):
         return len(self.labels)
     
     def __getitem__(self, index):
+
         label = os.path.join(self.path, self.mode, "labels", self.labels[index])
         boxes = np.roll(self.check_txtfile(label), 4, axis=1).tolist()
 
-        image = Image.open(os.path.join(self.path, self.mode, 'images', self.images[index]))
-        boxes = torch.tensor(boxes)
+        file_name = os.path.basename(label).split('.txt')[0]
+        img_path = os.path.join(self.path, self.mode, 'images', file_name + '.jpg')
+        image = np.array(Image.open(img_path).convert("RGB"))
+        # boxes = torch.tensor(boxes)
 
         if self.transform:
-            image, boxes = self.transform(image, boxes)
+            aug = self.transform(image=image, bboxes=boxes)
+            image = aug['image']
+            boxes = aug['bboxes']
 
+        boxes = torch.tensor(boxes)
         targets = [torch.zeros((self.num_anchors // 3, S, S, 6)) for S in self.S]
 
         for box in boxes:
@@ -86,7 +96,7 @@ class Dataset(torch.utils.data.Dataset):
                 i, j = int(y * S), int(x * S) # e.g. x = 0.5 && S = 13 -> j = (13 * 0.5) = 6
                 anchor_taken = targets[scale_idx][anchor_on_scale, i, j, 0]
 
-                if not anchor_taken and has_anchors[scale_idx]:
+                if not anchor_taken and not has_anchors[scale_idx]:
                     targets[scale_idx][anchor_on_scale, i, j, 0] = 1
                     x_cell, y_cell = x * S - j, y * S - i
                     w_cell, h_cell = (
@@ -150,7 +160,7 @@ if __name__ == "__main__":
         transform=transform
     )
 
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=8, shuffle=True)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=2, shuffle=True)
     train_fea, train_labels = next(iter(dataloader))
 
     print(f"Train Feature: {train_fea.shape}")
@@ -158,3 +168,28 @@ if __name__ == "__main__":
     print(f"Train Labels Scale 2: {train_labels[1].shape}")
     print(f"Train Labels Scale 3: {train_labels[2].shape}")
     print("Succeed")
+
+    print(train_fea[0])
+
+    i = 2
+    labels = train_labels[i]
+
+    S = labels.shape[2]
+    boxes = convert_trueboxes(labels, S=S)
+
+    for batch_idx in range(labels.shape[0]):
+        all_boxes = []
+        for box in boxes[batch_idx]:
+            if box[1] > 0.5:
+                all_boxes.append(box)
+
+        image = train_fea[batch_idx].permute(1, 2, 0)
+        image = (np.array(image) * 255).astype('uint8')
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+        annotated_image = draw_bounding_boxes(image, all_boxes) 
+        cv2.imwrite('test.png', annotated_image)
+        
+
+
+
