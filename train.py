@@ -24,7 +24,7 @@ ANCHORS = [
     [(0.07, 0.15), (0.15, 0.11), (0.14, 0.29)],
     [(0.02, 0.03), (0.04, 0.07), (0.08, 0.06)],
 ]
-LR = 1e-4
+LR = 1e-5
 WEIGHT_DECAY = 1e-4
 EPOCHS = 1000
 
@@ -71,8 +71,6 @@ def train_step(model, trainloader, loss_fn, optimizer, scaler, scheduler, scaled
 
 
 def main():
-
-    from test_model import YOLOv3
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     # model = YOLOv3(num_classes=20).to(device) 
     model =  Yolov3(in_channels=3, num_classes=20).to(device)
@@ -86,7 +84,7 @@ def main():
     )
 
     scaler = torch.cuda.amp.GradScaler()
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 500], gamma=0.1)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[400, 500], gamma=0.1)
 
     dataset = Dataset(
         path='/home/appuser/data',
@@ -122,7 +120,8 @@ def main():
             scaler=scaler,
             scheduler=scheduler,
             scaled_anchors=scaled_anchors,
-            device=device
+            device=device,
+            epoch=epoch,
         )
 
 

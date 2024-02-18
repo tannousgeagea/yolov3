@@ -88,9 +88,9 @@ if __name__ == "__main__":
 
     predict(
         model_path='./yolov3_last.pth', 
-        src="/home/appuser/data/test/images/000002.jpg",
+        src="/home/appuser/data/test/images/000008.jpg",
         anchors=ANCHORS,
         iou_threshold=0.45,
-        conf=0.5,
+        conf=0.7,
         device='cpu'
         )

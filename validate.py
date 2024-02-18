@@ -77,6 +77,8 @@ if __name__ == "__main__":
     from train import transform
     from model import Yolov3
     from dataset import Dataset
+    import config
+    from utils import save_model, load_model 
     IMAGE_SIZE = 416
     S = [IMAGE_SIZE // 32, IMAGE_SIZE // 16, IMAGE_SIZE // 8]
     ANCHORS = [
@@ -85,17 +87,18 @@ if __name__ == "__main__":
         [(0.02, 0.03), (0.04, 0.07), (0.08, 0.06)],
     ]
 
-    dataset = Dataset(
-        path='/home/appuser/data/PASCAL_VOC',
-        mode='train',
+    val_dataset = Dataset(
+        path='/home/appuser/data',
+        mode='test',
         anchors=ANCHORS,
-        transform=transform
+        transform=config.test_transforms
     )
 
+    valloader = torch.utils.data.DataLoader(val_dataset, batch_size=16, shuffle=True)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    trainloader = torch.utils.data.DataLoader(dataset, batch_size=8, shuffle=True)
-    model = Yolov3(in_channels=3, num_classes=20).to(device)
+    model =  Yolov3(in_channels=3, num_classes=20).to(device)
+    
+    load_model(model, checkpoint_file='./yolov3_last.pth')
+    mAP = val(model, valloader, device=device, anchors=ANCHORS, conf=0.45)
 
-    val(
-        model=model, validationloader=trainloader, device=device, anchors=ANCHORS
-    )
+    print("mAP: %s" % mAP)
